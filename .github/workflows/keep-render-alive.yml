@@ -1,0 +1,14 @@
+name: Keep Render Server Alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *" # every 10 minutes
+  workflow_dispatch: # allows manual run
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render server
+        run: |
+          curl -s -o /dev/null -w "%{http_code}\n" https://booking-backend-0b9z.onrender.com
