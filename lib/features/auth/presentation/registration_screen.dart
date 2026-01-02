@@ -38,6 +38,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       // Get current position
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 30),
       );
 
       // Get city from coordinates

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
-import 'features/onboarding/presentation/welcome_screen.dart';
+import 'features/splash/splash_screen.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -8,10 +8,28 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Doctor Booking App',
-      theme: AppTheme.lightTheme,
+      title: 'Professional Booking',
       debugShowCheckedModeBanner: false,
-      home: const WelcomeScreen(),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppTheme.primaryBlue,
+          brightness: Brightness.light,
+        ),
+        scaffoldBackgroundColor: AppTheme.lightBg,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          iconTheme: IconThemeData(color: AppTheme.textDark),
+          titleTextStyle: TextStyle(
+            color: AppTheme.textDark,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      home: const SplashScreen(),
     );
   }
 }

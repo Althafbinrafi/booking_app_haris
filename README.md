@@ -84,16 +84,16 @@ Before you begin, ensure you have the following installed:
 
 #### 1️⃣ Clone the Repository
 
-git clone https://github.com/yourusername/doctor_booking_app.git
-cd doctor_booking_app
-
-text
+```
+git clone https://github.com/Haris740/booking_app.git
+cd booking_app
+```
 
 #### 2️⃣ Install Flutter Dependencies
 
+```
 flutter pub get
-
-text
+```
 
 #### 3️⃣ Backend Setup
 
@@ -103,27 +103,33 @@ https://booking-backend-0b9z.onrender.com
 
 text
 
-For local backend development, see [Backend Repository](https://github.com/yourusername/booking-backend).
+For local backend development, see [Backend Repository](https://github.com/Haris740/booking-backend).
 
 #### 4️⃣ Configure Environment (Optional)
 
 Create a `.env` file in the project root if you want to customize the API endpoint:
 
+```
 API_BASE_URL=https://booking-backend-0b9z.onrender.com
-
-text
+```
 
 #### 5️⃣ Run the App
 
 Check for issues
+```
 flutter doctor
+```
 
 Run on connected device/emulator
+```
 flutter run
+```
 
 Build for release
+```
 flutter build apk --release # Android
 flutter build ios --release # iOS
+```
 
 text
 
@@ -158,35 +164,33 @@ text
 
 ## 📂 Project Structure
 
-lib/
-├── main.dart # App entry point
-├── app.dart # Root widget
-├── core/
-│ ├── theme/
-│ │ └── app_theme.dart # Blue-green theme
-│ └── constants/
-│ └── app_constants.dart
-├── features/
-│ ├── onboarding/
-│ │ └── presentation/
-│ │ └── welcome_screen.dart
-│ ├── auth/
-│ │ └── presentation/
-│ │ ├── login_screen.dart # Phone OTP login
-│ │ ├── otp_screen.dart # OTP verification
-│ │ └── registration_screen.dart
-│ ├── user/
-│ │ └── presentation/
-│ │ ├── user_home_screen.dart
-│ │ ├── professional_search_screen.dart
-│ │ └── profile_screen.dart
-│ └── professional/
-│ └── presentation/
-│ └── become_professional_screen.dart
-└── services/
-└── api_client.dart # HTTP service layer
-
-text
+lib/ <br />
+├── main.dart # App entry point<br />
+├── app.dart # Root widget<br />
+├── core/<br />
+│ ├── theme/<br />
+│ │ └── app_theme.dart # Blue-green theme<br />
+│ └── constants/<br />
+│ └── app_constants.dart<br />
+├── features/<br />
+│ ├── onboarding/<br />
+│ │ └── presentation/<br />
+│ │ └── welcome_screen.dart<br />
+│ ├── auth/<br />
+│ │ └── presentation/<br />
+│ │ ├── login_screen.dart # Phone OTP login<br />
+│ │ ├── otp_screen.dart # OTP verification<br />
+│ │ └── registration_screen.dart<br />
+│ ├── user/<br />
+│ │ └── presentation/<br />
+│ │ ├── user_home_screen.dart<br />
+│ │ ├── professional_search_screen.dart<br />
+│ │ └── profile_screen.dart<br />
+│ └── professional/<br />
+│ └── presentation/<br />
+│ └── become_professional_screen.dart<br />
+└── services/<br />
+└── api_client.dart # HTTP service layer<br />
 
 ---
 
@@ -241,13 +245,6 @@ We welcome contributions! Here's how you can help:
 
 ---
 
-## 🐛 Known Issues & Roadmap
-
-### Current Limitations
-- OTP is currently hardcoded in development (`123456`)
-- Location permissions require manual grant on first launch
-- Admin panel is backend-only (no mobile UI yet)
-
 ### Upcoming Features
 - [ ] In-app chat with professionals
 - [ ] Payment gateway integration
@@ -267,11 +264,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👨‍💻 Author
 
-**Your Name**
+**Haris P**
 
-- GitHub: [@yourusername](https://github.com/yourusername)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/yourprofile)
-- Email: your.email@example.com
+- GitHub: [@Haris740](https://github.com/Haris740)
+- LinkedIn: [Haris P](https://linkedin.com/in/haris-p-a58596352)
+- Email: mmchessman@gmail.com
 
 ---
 
@@ -290,10 +287,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 If you encounter any issues or have questions:
 
-1. Check the [Issues](https://github.com/yourusername/doctor_booking_app/issues) page
+1. Check the [Issues](https://github.com/Haris740/booking_app/issues) page
 2. Create a new issue with detailed description
-3. Join our [Discord community](#) (if applicable)
-4. Email us at support@yourapp.com
 
 ---
 

@@ -1,9 +1,12 @@
+import 'package:doctor_booking_app/services/api_client.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../professional/presentation/become_professional_screen.dart';
 import 'professional_search_screen.dart';
 import 'profile_screen.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../booking/presentation/my_bookings_screen.dart';
+import '../../../services/image_helper.dart';
 
 class UserHomeScreen extends StatefulWidget {
   const UserHomeScreen({super.key});
@@ -39,20 +42,45 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: AppTheme.textDark),
+            icon: const Icon(
+              Icons.notifications_outlined,
+              color: AppTheme.textDark,
+            ),
             onPressed: () {
               // TODO: Navigate to notifications
             },
           ),
           IconButton(
-            icon: const Icon(Icons.account_circle_outlined, color: AppTheme.textDark),
+            icon: FutureBuilder<String?>(
+              future: SharedPreferences.getInstance().then((prefs) async {
+                try {
+                  final user = await ApiClient.getMyProfile();
+                  return user['profilePicture'] as String?;
+                } catch (e) {
+                  return null;
+                }
+              }),
+              builder: (context, snapshot) {
+                if (snapshot.hasData && snapshot.data != null) {
+                  final image = ImageHelper.base64ToImage(snapshot.data);
+                  if (image != null) {
+                    return CircleAvatar(
+                      radius: 16,
+                      child: ClipOval(child: image),
+                    );
+                  }
+                }
+                return const Icon(
+                  Icons.account_circle_outlined,
+                  color: AppTheme.textDark,
+                );
+              },
+            ),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const ProfileScreen(),
-                ),
-              ).then((_) => _loadUserData()); // Reload after profile update
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              ).then((_) => _loadUserData());
             },
           ),
         ],
@@ -110,7 +138,8 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const ProfessionalSearchScreen(),
+                          builder: (context) =>
+                              const ProfessionalSearchScreen(),
                         ),
                       );
                     },
@@ -227,7 +256,8 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const ProfessionalSearchScreen(),
+                              builder: (context) =>
+                                  const ProfessionalSearchScreen(),
                             ),
                           );
                         },
@@ -238,7 +268,12 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                         Icons.list_alt_outlined,
                         AppTheme.greenGradient,
                         () {
-                          // TODO: Navigate to bookings
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const MyBookingsScreen(),
+                            ),
+                          );
                         },
                       ),
                       _buildQuickActionCard(
@@ -289,7 +324,8 @@ class _UserHomeScreenState extends State<UserHomeScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const ProfessionalSearchScreen(),
+                              builder: (context) =>
+                                  const ProfessionalSearchScreen(),
                             ),
                           );
                         },

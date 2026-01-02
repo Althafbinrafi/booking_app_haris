@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../services/api_client.dart';
+import '../../../services/image_helper.dart';
 import '../../onboarding/presentation/welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -19,9 +20,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final TextEditingController _emailController = TextEditingController();
   
   String userPhone = '';
+  String? _profilePicture;
   bool _isLoading = false;
   bool _isGettingLocation = false;
   bool _isSaving = false;
+  bool _isUploadingImage = false;
 
   @override
   void initState() {
@@ -32,14 +35,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadUserData() async {
     setState(() => _isLoading = true);
     
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _nameController.text = prefs.getString('userName') ?? '';
-      _cityController.text = prefs.getString('userCity') ?? '';
-      _emailController.text = prefs.getString('userEmail') ?? '';
-      userPhone = prefs.getString('userPhone') ?? '';
-      _isLoading = false;
-    });
+    try {
+      // Fetch from API to get latest data including profile picture
+      final user = await ApiClient.getMyProfile();
+      
+      if (mounted) {
+        setState(() {
+          _nameController.text = user['name'] ?? '';
+          _cityController.text = user['city'] ?? '';
+          _emailController.text = user['email'] ?? '';
+          userPhone = user['phone'] ?? '';
+          _profilePicture = user['profilePicture'];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      // Fallback to local storage
+      final prefs = await SharedPreferences.getInstance();
+      if (mounted) {
+        setState(() {
+          _nameController.text = prefs.getString('userName') ?? '';
+          _cityController.text = prefs.getString('userCity') ?? '';
+          _emailController.text = prefs.getString('userEmail') ?? '';
+          userPhone = prefs.getString('userPhone') ?? '';
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _getCurrentLocation() async {
@@ -60,6 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 30),
       );
 
       List<Placemark> placemarks = await placemarkFromCoordinates(
@@ -104,25 +127,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _pickProfilePicture() async {
+    setState(() => _isUploadingImage = true);
+
+    try {
+      final base64Image = await ImageHelper.pickAndCropImage(context);
+      
+      if (base64Image != null && mounted) {
+        setState(() {
+          _profilePicture = base64Image;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Picture selected! Don\'t forget to save.'),
+            backgroundColor: AppTheme.primaryBlue,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingImage = false);
+      }
+    }
+  }
+
   Future<void> _saveProfile() async {
     setState(() => _isSaving = true);
 
     try {
-      await ApiClient.patch(
-        '/me',
-        {
-          'name': _nameController.text.trim(),
-          'city': _cityController.text.trim(),
-          'email': _emailController.text.trim(),
-        },
-        requiresAuth: true,
+      await ApiClient.updateProfile(
+        name: _nameController.text.trim(),
+        city: _cityController.text.trim(),
+        email: _emailController.text.trim().isEmpty 
+            ? null 
+            : _emailController.text.trim(),
+        profilePicture: _profilePicture,
       );
-
-      // Save to local storage
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('userName', _nameController.text.trim());
-      await prefs.setString('userCity', _cityController.text.trim());
-      await prefs.setString('userEmail', _emailController.text.trim());
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -208,28 +262,102 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 children: [
-                  // Profile Avatar
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: AppTheme.primaryGradient,
-                    ),
-                    child: Center(
-                      child: Text(
-                        _nameController.text.isNotEmpty
-                            ? _nameController.text[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                  // Profile Picture
+                  Stack(
+                    children: [
+                      Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: _profilePicture == null 
+                              ? AppTheme.primaryGradient 
+                              : null,
+                          color: _profilePicture != null ? Colors.grey.shade200 : null,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: _profilePicture != null
+                              ? ImageHelper.base64ToImage(_profilePicture) ??
+                                  Center(
+                                    child: Text(
+                                      _nameController.text.isNotEmpty
+                                          ? _nameController.text[0].toUpperCase()
+                                          : '?',
+                                      style: const TextStyle(
+                                        fontSize: 48,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  )
+                              : Center(
+                                  child: Text(
+                                    _nameController.text.isNotEmpty
+                                        ? _nameController.text[0].toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(
+                                      fontSize: 48,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
                         ),
                       ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _isUploadingImage ? null : _pickProfilePicture,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.primaryGradient,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: _isUploadingImage
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.camera_alt,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Tap to change picture',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textLight,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
 
                   // Phone (Read-only)
                   Container(

@@ -6,17 +6,19 @@ class ApiClient {
   static const String baseUrl = 'https://booking-backend-0b9z.onrender.com';
   static final http.Client _client = http.Client();
 
-  // Get stored token
-  static Future<String?> _getToken() async {
+  // Get stored tokens
+  static Future<String?> _getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('accessToken');
   }
 
+  static Future<String?> _getRefreshToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('refreshToken');
+  }
+
   // Save tokens
-  static Future<void> _saveTokens(
-    String accessToken,
-    String refreshToken,
-  ) async {
+  static Future<void> _saveTokens(String accessToken, String refreshToken) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('accessToken', accessToken);
     await prefs.setString('refreshToken', refreshToken);
@@ -28,36 +30,92 @@ class ApiClient {
     await prefs.setString('userId', userId);
   }
 
+  // Check if user is logged in
+  static Future<bool> isLoggedIn() async {
+    final accessToken = await _getAccessToken();
+    return accessToken != null && accessToken.isNotEmpty;
+  }
+
+  // Refresh access token
+  static Future<bool> refreshAccessToken() async {
+    try {
+      final refreshToken = await _getRefreshToken();
+      if (refreshToken == null) return false;
+
+      final response = await _client.post(
+        Uri.parse('$baseUrl/auth/refresh'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refreshToken': refreshToken}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        await _saveTokens(
+          data['tokens']['accessToken'],
+          data['tokens']['refreshToken'],
+        );
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Token refresh error: $e');
+      return false;
+    }
+  }
+
   // Clear tokens (logout)
   static Future<void> clearTokens() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('accessToken');
     await prefs.remove('refreshToken');
     await prefs.remove('userId');
+    await prefs.remove('userName');
+    await prefs.remove('userCity');
+    await prefs.remove('userEmail');
+    await prefs.remove('userPhone');
   }
 
-  // POST request
+  // POST request with auto token refresh
   static Future<Map<String, dynamic>> post(
     String endpoint,
     Map<String, dynamic> data, {
     bool requiresAuth = false,
   }) async {
     final uri = Uri.parse('$baseUrl$endpoint');
-    final headers = {'Content-Type': 'application/json'};
+    final headers = {
+      'Content-Type': 'application/json',
+    };
 
     if (requiresAuth) {
-      final token = await _getToken();
+      final token = await _getAccessToken();
       if (token != null) {
         headers['Authorization'] = 'Bearer $token';
       }
     }
 
     try {
-      final response = await _client.post(
+      var response = await _client.post(
         uri,
         headers: headers,
         body: jsonEncode(data),
       );
+
+      // If token expired, try to refresh
+      if (response.statusCode == 401 && requiresAuth) {
+        final refreshed = await refreshAccessToken();
+        if (refreshed) {
+          // Retry with new token
+          final newToken = await _getAccessToken();
+          headers['Authorization'] = 'Bearer $newToken';
+          response = await _client.post(
+            uri,
+            headers: headers,
+            body: jsonEncode(data),
+          );
+        } else {
+          throw ApiException(message: 'Session expired. Please login again.');
+        }
+      }
 
       final responseData = jsonDecode(response.body);
 
@@ -75,14 +133,14 @@ class ApiClient {
     }
   }
 
-  // GET request
+  // GET request with auto token refresh
   static Future<Map<String, dynamic>> get(
     String endpoint, {
     bool requiresAuth = false,
     Map<String, String>? queryParams,
   }) async {
     var uri = Uri.parse('$baseUrl$endpoint');
-
+    
     if (queryParams != null && queryParams.isNotEmpty) {
       uri = uri.replace(queryParameters: queryParams);
     }
@@ -90,14 +148,27 @@ class ApiClient {
     final headers = <String, String>{};
 
     if (requiresAuth) {
-      final token = await _getToken();
+      final token = await _getAccessToken();
       if (token != null) {
         headers['Authorization'] = 'Bearer $token';
       }
     }
 
     try {
-      final response = await _client.get(uri, headers: headers);
+      var response = await _client.get(uri, headers: headers);
+
+      // If token expired, try to refresh
+      if (response.statusCode == 401 && requiresAuth) {
+        final refreshed = await refreshAccessToken();
+        if (refreshed) {
+          final newToken = await _getAccessToken();
+          headers['Authorization'] = 'Bearer $newToken';
+          response = await _client.get(uri, headers: headers);
+        } else {
+          throw ApiException(message: 'Session expired. Please login again.');
+        }
+      }
+
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -114,28 +185,46 @@ class ApiClient {
     }
   }
 
-  // PATCH request
+  // PATCH request with auto token refresh
   static Future<Map<String, dynamic>> patch(
     String endpoint,
     Map<String, dynamic> data, {
     bool requiresAuth = false,
   }) async {
     final uri = Uri.parse('$baseUrl$endpoint');
-    final headers = {'Content-Type': 'application/json'};
+    final headers = {
+      'Content-Type': 'application/json',
+    };
 
     if (requiresAuth) {
-      final token = await _getToken();
+      final token = await _getAccessToken();
       if (token != null) {
         headers['Authorization'] = 'Bearer $token';
       }
     }
 
     try {
-      final response = await _client.patch(
+      var response = await _client.patch(
         uri,
         headers: headers,
         body: jsonEncode(data),
       );
+
+      // If token expired, try to refresh
+      if (response.statusCode == 401 && requiresAuth) {
+        final refreshed = await refreshAccessToken();
+        if (refreshed) {
+          final newToken = await _getAccessToken();
+          headers['Authorization'] = 'Bearer $newToken';
+          response = await _client.patch(
+            uri,
+            headers: headers,
+            body: jsonEncode(data),
+          );
+        } else {
+          throw ApiException(message: 'Session expired. Please login again.');
+        }
+      }
 
       final responseData = jsonDecode(response.body);
 
@@ -153,30 +242,25 @@ class ApiClient {
     }
   }
 
-  // Auth: Send OTP
+  // ==================== AUTH ====================
+  
   static Future<String> sendOtp(String phone) async {
     final response = await post('/auth/send-otp', {'phone': phone});
-    return response['message'] ?? 'OTP sent successfully';
+    return response['message'];
   }
 
-  // Auth: Verify OTP
-  static Future<Map<String, dynamic>> verifyOtp(
-    String phone,
-    String otp,
-  ) async {
+  static Future<Map<String, dynamic>> verifyOtp(String phone, String otp) async {
     final response = await post('/auth/verify-otp', {
       'phone': phone,
       'otp': otp,
     });
 
-    // Save tokens
     await _saveTokens(
       response['tokens']['accessToken'],
       response['tokens']['refreshToken'],
     );
     await _saveUserId(response['user']['id']);
-
-    // Save user data to SharedPreferences
+    
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userPhone', phone);
     if (response['user']['name'] != null) {
@@ -192,19 +276,21 @@ class ApiClient {
     return response['user'];
   }
 
-  // Auth: Register/Complete Profile
   static Future<Map<String, dynamic>> register({
     required String name,
     String? email,
     String? city,
   }) async {
-    final response = await post('/auth/register', {
-      'name': name,
-      if (email != null) 'email': email,
-      if (city != null) 'city': city,
-    }, requiresAuth: true);
+    final response = await post(
+      '/auth/register',
+      {
+        'name': name,
+        if (email != null) 'email': email,
+        if (city != null) 'city': city,
+      },
+      requiresAuth: true,
+    );
 
-    // Save to SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userName', name);
     if (city != null) {
@@ -217,7 +303,88 @@ class ApiClient {
     return response['user'];
   }
 
-  // Professional: Apply
+  // ==================== USER PROFILE ====================
+  
+  static Future<Map<String, dynamic>> getMyProfile() async {
+    final response = await get('/me', requiresAuth: true);
+    
+    final user = response['user'];
+    final prefs = await SharedPreferences.getInstance();
+    if (user['name'] != null) {
+      await prefs.setString('userName', user['name']);
+    }
+    if (user['city'] != null) {
+      await prefs.setString('userCity', user['city']);
+    }
+    if (user['email'] != null) {
+      await prefs.setString('userEmail', user['email']);
+    }
+    if (user['phone'] != null) {
+      await prefs.setString('userPhone', user['phone']);
+    }
+    
+    return user;
+  }
+
+  static Future<Map<String, dynamic>> updateProfile({
+    String? name,
+    String? email,
+    String? city,
+    String? profilePicture,
+  }) async {
+    final response = await patch(
+      '/me',
+      {
+        if (name != null) 'name': name,
+        if (email != null) 'email': email,
+        if (city != null) 'city': city,
+        if (profilePicture != null) 'profilePicture': profilePicture,
+      },
+      requiresAuth: true,
+    );
+    
+    final user = response['user'];
+    final prefs = await SharedPreferences.getInstance();
+    if (user['name'] != null) {
+      await prefs.setString('userName', user['name']);
+    }
+    if (user['city'] != null) {
+      await prefs.setString('userCity', user['city']);
+    }
+    if (user['email'] != null) {
+      await prefs.setString('userEmail', user['email']);
+    }
+    
+    return user;
+  }
+
+  // ==================== PROFESSIONALS ====================
+
+  static Future<List<dynamic>> searchProfessionals({
+    String? city,
+    String? professionType,
+    String? q,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final params = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    
+    if (city != null) params['city'] = city;
+    if (professionType != null) params['professionType'] = professionType;
+    if (q != null) params['q'] = q;
+
+    final response = await get('/professional', queryParams: params);
+    return response['data'];
+  }
+
+  static Future<Map<String, dynamic>> getProfessionalById(String id) async {
+    final response = await get('/professional/$id');
+    return response;
+  }
+
   static Future<Map<String, dynamic>> applyProfessional({
     required String title,
     required String professionType,
@@ -227,80 +394,171 @@ class ApiClient {
     required String consultationMode,
     required int baseFee,
     required int yearsExperience,
+    required String bookingType,
     String? address,
+    String? proof,
     List<String>? tags,
   }) async {
-    final response = await post('/professional/apply', {
-      'title': title,
-      'professionType': professionType,
-      'categorySlug': categorySlug,
-      'about': about,
-      'city': city,
-      'consultationMode': consultationMode,
-      'baseFee': baseFee,
-      'yearsExperience': yearsExperience,
-      if (address != null) 'address': address,
-      if (tags != null) 'tags': tags,
-    }, requiresAuth: true);
-
+    final response = await post(
+      '/professional/apply',
+      {
+        'title': title,
+        'professionType': professionType,
+        'categorySlug': categorySlug,
+        'about': about,
+        'city': city,
+        'consultationMode': consultationMode,
+        'baseFee': baseFee,
+        'yearsExperience': yearsExperience,
+        'bookingType': bookingType,
+        if (address != null) 'address': address,
+        if (proof != null) 'proof': proof,
+        if (tags != null) 'tags': tags,
+      },
+      requiresAuth: true,
+    );
     return response;
   }
 
-  // Professional: Get My Profile
-  static Future<Map<String, dynamic>?> getMyProfessionalProfile() async {
-    try {
-      final response = await get('/professional/me', requiresAuth: true);
-      return response['data'];
-    } catch (e) {
-      return null;
-    }
-  }
+  // ==================== BOOKINGS ====================
 
-  // Professional: Search
-  static Future<List<dynamic>> searchProfessionals({
-    String? city,
-    String? professionType,
-    String? q,
-    int page = 1,
-    int limit = 20,
-  }) async {
-    final queryParams = <String, String>{
-      'page': page.toString(),
-      'limit': limit.toString(),
-      if (city != null && city != 'Select City') 'city': city,
-      if (professionType != null) 'professionType': professionType,
-      if (q != null && q.isNotEmpty) 'q': q,
-    };
-
-    final response = await get('/professional', queryParams: queryParams);
-    return response['data'] ?? [];
-  }
-
-  // Professional: Get Details
-  static Future<Map<String, dynamic>> getProfessionalDetails(String id) async {
-    final response = await get('/professional/$id');
-    return response['data'];
-  }
-
-  // Bookings: Create
-  static Future<Map<String, dynamic>> createBooking({
+  static Future<Map<String, dynamic>> createTokenBooking({
     required String professionalId,
-    required DateTime scheduledFor,
-    String? notes,
+    required String name,
+    required int age,
+    required String gender,
+    required String phone,
+    required DateTime appointmentDate,
   }) async {
-    final response = await post('/bookings', {
-      'professionalId': professionalId,
-      'scheduledFor': scheduledFor.toIso8601String(),
-      if (notes != null) 'notes': notes,
-    }, requiresAuth: true);
-
-    return response['data'];
+    final response = await post(
+      '/bookings/token',
+      {
+        'professionalId': professionalId,
+        'name': name,
+        'age': age,
+        'gender': gender,
+        'phone': phone,
+        'appointmentDate': appointmentDate.toIso8601String(),
+      },
+      requiresAuth: true,
+    );
+    return response['booking'];
   }
 
-  // Bookings: Get My Bookings
+  static Future<Map<String, dynamic>> createTimeslotBooking({
+    required String professionalId,
+    required String name,
+    required int age,
+    required String gender,
+    required String phone,
+    required DateTime appointmentDate,
+    required String timeSlot,
+  }) async {
+    final response = await post(
+      '/bookings/timeslot',
+      {
+        'professionalId': professionalId,
+        'name': name,
+        'age': age,
+        'gender': gender,
+        'phone': phone,
+        'appointmentDate': appointmentDate.toIso8601String(),
+        'timeSlot': timeSlot,
+      },
+      requiresAuth: true,
+    );
+    return response['booking'];
+  }
+
   static Future<List<dynamic>> getMyBookings() async {
-    final response = await get('/bookings/me', requiresAuth: true);
-    return response['data'] ?? [];
+    final response = await get('/bookings/my', requiresAuth: true);
+    return response['bookings'];
+  }
+
+  static Future<Map<String, dynamic>> getBookingStatus(String bookingId) async {
+    final response = await get('/bookings/$bookingId/status', requiresAuth: true);
+    return response;
+  }
+
+  static Future<Map<String, dynamic>> cancelBooking(String bookingId) async {
+    final response = await patch(
+      '/bookings/$bookingId/cancel',
+      {},
+      requiresAuth: true,
+    );
+    return response['booking'];
+  }
+
+  // ==================== PROFESSIONAL QUEUE ====================
+
+  static Future<Map<String, dynamic>> getTodayQueue() async {
+    final response = await get('/bookings/queue/today', requiresAuth: true);
+    return response;
+  }
+
+  static Future<Map<String, dynamic>?> callNextPatient({DateTime? date}) async {
+    final response = await post(
+      '/bookings/call-next',
+      {
+        if (date != null) 'date': date.toIso8601String(),
+      },
+      requiresAuth: true,
+    );
+    return response['nextToken'];
+  }
+
+  static Future<Map<String, dynamic>> markNoShow(String bookingId) async {
+    final response = await patch(
+      '/bookings/$bookingId/no-show',
+      {},
+      requiresAuth: true,
+    );
+    return response['booking'];
+  }
+
+  // ==================== ADMIN ====================
+
+  static Future<List<dynamic>> getPendingProfessionals() async {
+    final response = await get('/admin/professionals/pending', requiresAuth: true);
+    return response['professionals'];
+  }
+
+  static Future<Map<String, dynamic>> approveProfessional(
+    String id, {
+    String? adminNote,
+  }) async {
+    final response = await patch(
+      '/admin/professionals/$id/approve',
+      {
+        if (adminNote != null) 'adminNote': adminNote,
+      },
+      requiresAuth: true,
+    );
+    return response['professional'];
+  }
+
+  static Future<Map<String, dynamic>> rejectProfessional(
+    String id, {
+    String? adminNote,
+  }) async {
+    final response = await patch(
+      '/admin/professionals/$id/reject',
+      {
+        if (adminNote != null) 'adminNote': adminNote,
+      },
+      requiresAuth: true,
+    );
+    return response['professional'];
+  }
+
+  static Future<List<dynamic>> getAllUsers() async {
+    final response = await get('/admin/users', requiresAuth: true);
+    return response['users'];
+  }
+
+  static Future<List<dynamic>> getAllBookings() async {
+    final response = await get('/admin/bookings', requiresAuth: true);
+    return response['bookings'];
   }
 }
 

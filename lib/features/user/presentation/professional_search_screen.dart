@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../services/api_client.dart';
+import '../../booking/presentation/create_booking_screen.dart';
 
 class ProfessionalSearchScreen extends StatefulWidget {
   const ProfessionalSearchScreen({super.key});
@@ -13,8 +14,15 @@ class ProfessionalSearchScreen extends StatefulWidget {
 class _ProfessionalSearchScreenState extends State<ProfessionalSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   String selectedFilter = 'All';
-  final List<String> filters = ['All', 'doctors', 'lawyers', 'tutors', 'therapists', 'technicians'];
-  
+  final List<String> filters = [
+    'All',
+    'doctors',
+    'lawyers',
+    'tutors',
+    'therapists',
+    'technicians',
+  ];
+
   List<dynamic> professionals = [];
   bool _isLoading = false;
   bool _hasError = false;
@@ -34,9 +42,11 @@ class _ProfessionalSearchScreenState extends State<ProfessionalSearchScreen> {
     try {
       final data = await ApiClient.searchProfessionals(
         professionType: selectedFilter == 'All' ? null : selectedFilter,
-        q: _searchController.text.trim().isEmpty ? null : _searchController.text.trim(),
+        q: _searchController.text.trim().isEmpty
+            ? null
+            : _searchController.text.trim(),
       );
-      
+
       setState(() {
         professionals = data;
         _isLoading = false;
@@ -46,14 +56,16 @@ class _ProfessionalSearchScreenState extends State<ProfessionalSearchScreen> {
         _hasError = true;
         _isLoading = false;
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error loading professionals: ${e.toString()}'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }
@@ -64,9 +76,7 @@ class _ProfessionalSearchScreenState extends State<ProfessionalSearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.lightBg,
-      appBar: AppBar(
-        title: const Text('Search Professionals'),
-      ),
+      appBar: AppBar(title: const Text('Search Professionals')),
       body: Column(
         children: [
           // Search + filter area
@@ -81,59 +91,63 @@ class _ProfessionalSearchScreenState extends State<ProfessionalSearchScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          
+
           // Results
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _hasError
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                            const SizedBox(height: 16),
-                            const Text('Failed to load professionals'),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: _loadProfessionals,
-                              child: const Text('Retry'),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: Colors.red,
                         ),
-                      )
-                    : professionals.isEmpty
-                        ? const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.search_off,
-                                  size: 48,
-                                  color: AppTheme.textLight,
-                                ),
-                                SizedBox(height: 16),
-                                Text(
-                                  'No professionals found',
-                                  style: TextStyle(
-                                    color: AppTheme.textLight,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : RefreshIndicator(
-                            onRefresh: _loadProfessionals,
-                            child: ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                              itemCount: professionals.length,
-                              itemBuilder: (context, index) {
-                                final pro = professionals[index];
-                                return _buildProfessionalCard(pro);
-                              },
-                            ),
+                        const SizedBox(height: 16),
+                        const Text('Failed to load professionals'),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadProfessionals,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
+                : professionals.isEmpty
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 48,
+                          color: AppTheme.textLight,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'No professionals found',
+                          style: TextStyle(
+                            color: AppTheme.textLight,
+                            fontSize: 16,
                           ),
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _loadProfessionals,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      itemCount: professionals.length,
+                      itemBuilder: (context, index) {
+                        final pro = professionals[index];
+                        return _buildProfessionalCard(pro);
+                      },
+                    ),
+                  ),
           ),
         ],
       ),
@@ -187,12 +201,14 @@ class _ProfessionalSearchScreenState extends State<ProfessionalSearchScreen> {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           final filter = filters[index];
-          final displayName = filter == 'All' ? 'All' : filter[0].toUpperCase() + filter.substring(1);
+          final displayName = filter == 'All'
+              ? 'All'
+              : filter[0].toUpperCase() + filter.substring(1);
           final isSelected = selectedFilter == filter;
-          
+
           return ChoiceChip(
             label: Text(displayName),
             selected: isSelected,
@@ -221,7 +237,7 @@ class _ProfessionalSearchScreenState extends State<ProfessionalSearchScreen> {
   }
 
   Widget _buildProfessionalCard(Map<String, dynamic> pro) {
-    final String name = pro['User']?['name'] ?? 'Unknown';
+    final String name = pro['user']?['name'] ?? 'Unknown';
     final String title = pro['title'] ?? '';
     final String professionType = pro['professionType'] ?? '';
     final String city = pro['city'] ?? '';
@@ -232,8 +248,8 @@ class _ProfessionalSearchScreenState extends State<ProfessionalSearchScreen> {
     final Color modeColor = mode == 'online'
         ? AppTheme.primaryBlue
         : mode == 'offline'
-            ? AppTheme.primaryGreen
-            : AppTheme.darkBlue;
+        ? AppTheme.primaryGreen
+        : AppTheme.darkBlue;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -272,7 +288,7 @@ class _ProfessionalSearchScreenState extends State<ProfessionalSearchScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          
+
           // Info
           Expanded(
             child: Column(
@@ -301,8 +317,11 @@ class _ProfessionalSearchScreenState extends State<ProfessionalSearchScreen> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.location_on_outlined,
-                        size: 14, color: AppTheme.textLight),
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 14,
+                      color: AppTheme.textLight,
+                    ),
                     const SizedBox(width: 2),
                     Expanded(
                       child: Text(
@@ -316,10 +335,13 @@ class _ProfessionalSearchScreenState extends State<ProfessionalSearchScreen> {
                   ],
                 ),
                 const SizedBox(height: 6),
-                
+
                 // Mode pill
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: modeColor.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(999),
@@ -337,7 +359,7 @@ class _ProfessionalSearchScreenState extends State<ProfessionalSearchScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          
+
           // Fee and button
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -352,28 +374,25 @@ class _ProfessionalSearchScreenState extends State<ProfessionalSearchScreen> {
               ),
               const Text(
                 'per session',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: AppTheme.textLight,
-                ),
+                style: TextStyle(fontSize: 11, color: AppTheme.textLight),
               ),
               const SizedBox(height: 8),
               SizedBox(
                 height: 30,
                 child: ElevatedButton(
                   onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Booking for $name'),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CreateBookingScreen(professional: pro),
                       ),
                     );
                   },
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 0,
+                    ),
                     backgroundColor: AppTheme.primaryBlue,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(

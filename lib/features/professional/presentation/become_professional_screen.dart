@@ -1,5 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../services/api_client.dart';
@@ -20,25 +18,26 @@ class _BecomeProfessionalScreenState extends State<BecomeProfessionalScreen> {
   final TextEditingController _experienceController = TextEditingController();
   final TextEditingController _feeController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _proofController = TextEditingController();
 
   String _selectedProfessionType = 'Select profession type';
-  String _selectedMode = 'Both';
+  String _selectedMode = 'BOTH';
+  String _bookingType = 'BOTH'; // NEW: TOKEN, TIMESLOT, or BOTH
   String _selectedCity = 'Select City';
 
   bool _isLoading = false;
 
   final List<String> professionTypes = [
     'Select profession type',
-    'Doctor',
-    'Lawyer',
-    'Tutor',
-    'Therapist',
-    'Technician',
-    'Consultant',
-    'Other',
+    'doctors',
+    'lawyers',
+    'tutors',
+    'therapists',
+    'technicians',
   ];
 
-  final List<String> modes = ['Online', 'Offline', 'Both'];
+  final List<String> modes = ['ONLINE', 'OFFLINE', 'BOTH'];
+  final List<String> bookingTypes = ['TOKEN', 'TIMESLOT', 'BOTH'];
 
   final List<String> cities = [
     'Select City',
@@ -100,9 +99,15 @@ class _BecomeProfessionalScreenState extends State<BecomeProfessionalScreen> {
                   label: 'Address / Area (optional)',
                   hint: 'e.g. MG Road, JP Nagar...',
                   icon: Icons.location_on_outlined,
+                  required: false,
                 ),
                 const SizedBox(height: 12),
-                _buildModeChips(),
+                _buildModeSection(),
+                const SizedBox(height: 24),
+
+                _buildSectionTitle('Booking Type'),
+                const SizedBox(height: 12),
+                _buildBookingTypeSection(),
                 const SizedBox(height: 24),
 
                 _buildSectionTitle('Consultation & fees'),
@@ -110,6 +115,17 @@ class _BecomeProfessionalScreenState extends State<BecomeProfessionalScreen> {
                 _buildFeeField(),
                 const SizedBox(height: 12),
                 _buildExperienceField(),
+                const SizedBox(height: 24),
+
+                _buildSectionTitle('License/Certificate (optional)'),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _proofController,
+                  label: 'License/Certificate Number',
+                  hint: 'Enter your professional license ID',
+                  icon: Icons.verified_user_outlined,
+                  required: false,
+                ),
                 const SizedBox(height: 24),
 
                 _buildSectionTitle('Highlights (optional)'),
@@ -127,7 +143,7 @@ class _BecomeProfessionalScreenState extends State<BecomeProfessionalScreen> {
                 _buildVerificationHintCard(),
                 const SizedBox(height: 24),
 
-                _buildSubmitButton(context),
+                _buildSubmitButton(),
                 const SizedBox(height: 16),
               ],
             ),
@@ -226,7 +242,9 @@ class _BecomeProfessionalScreenState extends State<BecomeProfessionalScreen> {
           return DropdownMenuItem<String>(
             value: profession,
             child: Text(
-              profession,
+              profession == 'Select profession type' 
+                  ? profession 
+                  : profession[0].toUpperCase() + profession.substring(1),
               style: TextStyle(
                 color: profession == 'Select profession type'
                     ? AppTheme.textLight
@@ -314,6 +332,7 @@ class _BecomeProfessionalScreenState extends State<BecomeProfessionalScreen> {
     required String hint,
     required IconData icon,
     int maxLines = 1,
+    bool required = true,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -344,12 +363,14 @@ class _BecomeProfessionalScreenState extends State<BecomeProfessionalScreen> {
           filled: true,
           fillColor: Colors.white,
         ),
-        validator: (value) {
-          if (maxLines == 1 && (value == null || value.trim().isEmpty)) {
-            return 'Required field';
-          }
-          return null;
-        },
+        validator: required
+            ? (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Required field';
+                }
+                return null;
+              }
+            : null,
       ),
     );
   }
@@ -399,7 +420,7 @@ class _BecomeProfessionalScreenState extends State<BecomeProfessionalScreen> {
     );
   }
 
-  Widget _buildModeChips() {
+  Widget _buildModeSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -413,7 +434,7 @@ class _BecomeProfessionalScreenState extends State<BecomeProfessionalScreen> {
           children: modes.map((mode) {
             final isSelected = _selectedMode == mode;
             return ChoiceChip(
-              label: Text(mode),
+              label: Text(mode[0] + mode.substring(1).toLowerCase()),
               selected: isSelected,
               onSelected: (_) {
                 setState(() {
@@ -431,6 +452,59 @@ class _BecomeProfessionalScreenState extends State<BecomeProfessionalScreen> {
                 side: BorderSide(
                   color: isSelected
                       ? AppTheme.primaryBlue
+                      : Colors.grey.shade300,
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBookingTypeSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'How do you want to manage appointments?',
+          style: TextStyle(fontSize: 14, color: AppTheme.textLight),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: bookingTypes.map((type) {
+            final isSelected = _bookingType == type;
+            String displayText;
+            switch (type) {
+              case 'TOKEN':
+                displayText = 'Token Based';
+                break;
+              case 'TIMESLOT':
+                displayText = 'Time Slot';
+                break;
+              default:
+                displayText = 'Both';
+            }
+            return ChoiceChip(
+              label: Text(displayText),
+              selected: isSelected,
+              onSelected: (_) {
+                setState(() {
+                  _bookingType = type;
+                });
+              },
+              backgroundColor: Colors.white,
+              selectedColor: AppTheme.primaryGreen.withValues(alpha: 0.15),
+              labelStyle: TextStyle(
+                color: isSelected ? AppTheme.primaryGreen : AppTheme.textDark,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(
+                  color: isSelected
+                      ? AppTheme.primaryGreen
                       : Colors.grey.shade300,
                 ),
               ),
@@ -587,7 +661,7 @@ class _BecomeProfessionalScreenState extends State<BecomeProfessionalScreen> {
     );
   }
 
-  Widget _buildSubmitButton(BuildContext context) {
+  Widget _buildSubmitButton() {
     return Container(
       width: double.infinity,
       height: 56,
@@ -603,64 +677,7 @@ class _BecomeProfessionalScreenState extends State<BecomeProfessionalScreen> {
         ],
       ),
       child: ElevatedButton(
-        onPressed: () async {
-          if (_formKey.currentState?.validate() ?? false) {
-            setState(() => _isLoading = true);
-
-            try {
-              await ApiClient.applyProfessional(
-                title: _titleController.text.trim(),
-                professionType: _selectedProfessionType.toLowerCase(),
-                categorySlug: _selectedProfessionType.toLowerCase().replaceAll(
-                  ' ',
-                  '-',
-                ),
-                about: _aboutController.text.trim(),
-                city: _selectedCity,
-                consultationMode: _selectedMode.toLowerCase(),
-                baseFee: int.parse(_feeController.text.trim()),
-                yearsExperience: int.parse(_experienceController.text.trim()),
-                address: _locationController.text.trim().isEmpty
-                    ? null
-                    : _locationController.text.trim(),
-                tags: selectedTags.isEmpty ? null : selectedTags,
-              );
-
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text(
-                      'Application submitted! You will be notified after admin approval.',
-                    ),
-                    backgroundColor: AppTheme.primaryGreen,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                );
-                Navigator.pop(context);
-              }
-            } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error: ${e.toString()}'),
-                    backgroundColor: Colors.red,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                );
-              }
-            } finally {
-              if (mounted) {
-                setState(() => _isLoading = false);
-              }
-            }
-          }
-        },
+        onPressed: _isLoading ? null : _submitApplication,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
@@ -686,6 +703,69 @@ class _BecomeProfessionalScreenState extends State<BecomeProfessionalScreen> {
     );
   }
 
+  Future<void> _submitApplication() async {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      await ApiClient.applyProfessional(
+        title: _titleController.text.trim(),
+        professionType: _selectedProfessionType,
+        categorySlug: _selectedProfessionType.toLowerCase().replaceAll(' ', '-'),
+        about: _aboutController.text.trim(),
+        city: _selectedCity,
+        consultationMode: _selectedMode,
+        baseFee: int.parse(_feeController.text.trim()),
+        yearsExperience: int.parse(_experienceController.text.trim()),
+        bookingType: _bookingType, // FIXED: Added bookingType
+        address: _locationController.text.trim().isEmpty
+            ? null
+            : _locationController.text.trim(),
+        proof: _proofController.text.trim().isEmpty
+            ? null
+            : _proofController.text.trim(),
+        tags: selectedTags.isEmpty ? null : selectedTags,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Application submitted! You will be notified after admin approval.',
+          ),
+          backgroundColor: AppTheme.primaryGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+      
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -693,6 +773,7 @@ class _BecomeProfessionalScreenState extends State<BecomeProfessionalScreen> {
     _experienceController.dispose();
     _feeController.dispose();
     _locationController.dispose();
+    _proofController.dispose();
     super.dispose();
   }
 }
